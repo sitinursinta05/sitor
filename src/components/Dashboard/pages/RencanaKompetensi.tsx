@@ -66,6 +66,42 @@ export default function RencanaKompetensi() {
     fileUrl: string;
     fileType: string;
   } | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  const handleDownloadFile = async (fileUrl: string, fileName: string) => {
+    if (isDownloading) return;
+    setIsDownloading(true);
+    try {
+      let path = '';
+      const storageKey = '/storage/';
+      const idx = fileUrl.indexOf(storageKey);
+      if (idx !== -1) {
+        path = fileUrl.substring(idx + storageKey.length);
+      } else {
+        path = fileUrl.split('/').pop() || '';
+      }
+
+      const response = await api.get(`/download-file?path=${encodeURIComponent(path)}`, {
+        responseType: 'blob'
+      });
+
+      const blob = new Blob([response.data], { type: response.headers['content-type'] || 'application/octet-stream' });
+      const blobUrl = window.URL.createObjectURL(blob);
+
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (error) {
+      console.error('Download failed:', error);
+      window.open(fileUrl, '_blank');
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   const [personelData, setPersonelData] = useState<any[]>([]);
 
@@ -1048,16 +1084,14 @@ export default function RencanaKompetensi() {
 
             <div className="p-4 border-t border-gray-200 bg-white flex justify-between items-center">
               <span className="text-xs text-gray-500 font-medium">Pastikan ukuran file terbaca dengan jelas.</span>
-              <a 
-                href={previewFileData.fileUrl} 
-                target="_blank" 
-                rel="noopener noreferrer" 
-                download 
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg font-bold text-sm hover:bg-blue-700 flex items-center gap-2"
+              <button 
+                onClick={() => handleDownloadFile(previewFileData.fileUrl, previewFileData.fileName)}
+                disabled={isDownloading}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg font-bold text-sm hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
               >
                 <Download className="w-4 h-4" />
-                <span>Unduh File</span>
-              </a>
+                <span>{isDownloading ? 'Mengunduh...' : 'Unduh File'}</span>
+              </button>
             </div>
 
           </div>

@@ -102,6 +102,42 @@ export default function PenugasanAudit() {
   // State Untuk Pratinjau Dokumen
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
   const [previewFileData, setPreviewFileData] = useState<{ fileName: string; fileUrl: string; fileType: string; } | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  const handleDownloadFile = async (fileUrl: string, fileName: string) => {
+    if (isDownloading) return;
+    setIsDownloading(true);
+    try {
+      let path = '';
+      const storageKey = '/storage/';
+      const idx = fileUrl.indexOf(storageKey);
+      if (idx !== -1) {
+        path = fileUrl.substring(idx + storageKey.length);
+      } else {
+        path = fileUrl.split('/').pop() || '';
+      }
+
+      const response = await api.get(`/download-file?path=${encodeURIComponent(path)}`, {
+        responseType: 'blob'
+      });
+
+      const blob = new Blob([response.data], { type: response.headers['content-type'] || 'application/octet-stream' });
+      const blobUrl = window.URL.createObjectURL(blob);
+
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (error) {
+      console.error('Download failed:', error);
+      window.open(fileUrl, '_blank');
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   useEffect(() => {
     fetchData();
@@ -860,11 +896,12 @@ export default function PenugasanAudit() {
                 <span className="font-semibold">Sistem Penyimpanan Terpadu SI-PAKAR</span>
               </div>
               <button
-                onClick={() => window.open(previewFileData.fileUrl, '_blank')}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors flex items-center space-x-2"
+                onClick={() => handleDownloadFile(previewFileData.fileUrl, previewFileData.fileName)}
+                disabled={isDownloading}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors flex items-center space-x-2 disabled:opacity-50"
               >
                 <Download className="w-4 h-4" />
-                <span>Buka di Tab Baru</span>
+                <span>{isDownloading ? 'Mengunduh...' : 'Unduh File'}</span>
               </button>
             </div>
           </div>
